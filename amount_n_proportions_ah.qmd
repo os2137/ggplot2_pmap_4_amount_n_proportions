@@ -1,0 +1,142 @@
+---
+title: "amount_n_proportions_ah"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+# [**PMAP 8921 • (4) Amounts and Proportions: (0) Introduction**](https://www.youtube.com/watch?v=K8wELKhqgn0&list=PLS6tnpTr39sEdnMYtNP3U3C2AsQZycEyP)
+
+## [Slides](https://datavizm20.classes.andrewheiss.com/slides/04-slides.html#26)
+
+## [Data and Code Link](https://datavizm20.classes.andrewheiss.com/example/04-example/)
+
+```{r}
+library(tidyverse)
+library(scales)
+
+theme_set(theme_minimal(
+  base_size = 16, 
+  base_family = "Graphik"
+  
+))
+```
+
+## Loading and combining the data 
+
+```{r}
+births_1994_1999 <- read_csv("data/US_births_1994-2003_CDC_NCHS.csv") |> 
+  filter(year < 2000) 
+
+births_2000_2014 <- read_csv("data/US_births_2000-2014_SSA.csv")
+
+births_combined <- bind_rows(births_1994_1999, births_2000_2014)
+```
+
+## Cleaning the data 
+
+```{r}
+name_of_months <- c("January", "February", "March", "April", "May", "June", 
+                    "July", "August", "September", "October", "November", "December")
+
+name_of_days <-  c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+```
+
+```{r}
+births <- births_combined |> 
+  mutate(month = factor(month, labels = name_of_months , ordered = TRUE), 
+         day_of_week = factor(day_of_week, labels = name_of_days, ordered  = TRUE), 
+         date_of_month_cat = factor(date_of_month)) |> 
+  mutate(weekend = if_else(day_of_week %in% c("Saturday", "Sunday"), TRUE, FALSE))
+  
+```
+
+## Barplot
+
+```{r}
+births |> 
+  group_by(day_of_week) |> 
+  summarize(total = sum(births)) |> 
+  ggplot(aes(x = day_of_week,  y = total, fill = day_of_week)) + 
+  geom_col() + 
+  theme(legend.position = 'none')
+```
+
+```{r}
+births |> 
+  group_by(day_of_week) |> 
+  summarize(total = sum(births)) |> 
+  mutate(weekend = if_else(day_of_week %in% c("Saturday", "Sunday"), TRUE, FALSE)) |> 
+  ggplot(aes(x = day_of_week,  y = total, fill = weekend)) + 
+  geom_col() + 
+  theme(legend.position = 'none')
+```
+
+### Lets emphasize particular part of the plot 
+
+```{r}
+births |> 
+  group_by(day_of_week) |> 
+  summarize(total = sum(births)) |> 
+  mutate(weekend = if_else(day_of_week %in% c("Saturday", "Sunday"), TRUE, FALSE)) |> 
+  ggplot(aes(x = day_of_week,  y = total, fill = weekend)) + 
+  geom_col() +
+  scale_fill_manual(values = c('grey50', 'orange4' )) +
+  theme(legend.position = 'none')+
+  scale_y_continuous(labels = scales::comma_format())
+```
+
+## Lets make the lollipop chart
+
+```{r}
+births |> 
+  group_by(day_of_week) |> 
+  summarize(total = sum(births)) |> 
+  mutate(weekend = if_else(day_of_week %in% c("Saturday", "Sunday"), TRUE, FALSE)) |> 
+  ggplot(aes(x = day_of_week,  y = total, color = weekend)) + 
+  geom_pointrange(aes(ymin = 0, max = total, linewidth = 5), size = 3, fatten = 7) +
+  scale_color_manual(values = c('grey50', 'orange2' )) +
+  theme(legend.position = 'none') +
+  scale_y_continuous(labels = comma_format())
+```
+
+## Strip plot
+
+```{r}
+ggplot(data = births, 
+       mapping = aes(x = day_of_week, y = births, color = weekend)) + 
+  geom_point( position = position_jitter(height = 0, width = 0.2), 
+              size = 0.5, 
+              alphs = 0.5) +
+  scale_color_manual(values = c('grey50', 'orange2' ))
+```
+
+```{r}
+library(ggbeeswarm)
+
+ggplot(data = births, 
+       mapping = aes(x = day_of_week, y = births, color = weekend)) + 
+  geom_quasirandom(size = 0.005) +
+  scale_color_manual(values = c('grey50', 'orange2' )) + 
+  theme(legend.position = 'none')
+```
+
+## Heatmap
+
+to see if there are patterns across all of those days
+
+```{r}
+births |> 
+  group_by(month, date_of_month_cat) |> 
+  summarize(avg_birth = mean(births)) |> 
+  ggplot(aes(x = date_of_month_cat, y = fct_rev(month), fill = avg_birth)) + 
+  geom_tile() +
+  scale_fill_viridis_c(option = 'inferno') +
+  coord_equal() + 
+  labs( x = NULL, 
+        y = NULL, 
+        title = "Heatmap showing average number of births per day by month") + 
+  theme(plot.title.position = 'plot')
+  # theme(legend.position = 'top')
+```
